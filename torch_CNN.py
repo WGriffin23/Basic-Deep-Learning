@@ -5,7 +5,6 @@ Remarks:
 - Data are 32x32 color images 
 - There are 6000 images per class, for a total of 60,000 images
 - Training and Testing datasets are pre-curated at a 5:1 ratio
-- TEST COMMENT
 '''
 
 #%%
@@ -20,83 +19,102 @@ import numpy as np
 
 # %%
 # Hyperparameters
-num_epochs = 20
-num_batches = 4
-eta = .003 # learning rate
+num_epochs = 4
+batch_size = 96
+eta = .001 # learning rate
 
 # %%
 # Data Loading
 
-# We want to standardize channel intensities and work with a Tensor
+# Cast data to a tensor and standardize the data
 transform = transforms.Compose([transforms.ToTensor(), 
 transforms.Normalize(mean = (0.5,0.5,0.5), std = (0.5,0.5,0.5))])
 
 # Loaders; torchvision already caches these as Dataset objects
-train = torchvision.datasets.CIFAR10(root = '.', train = True,
+train = torchvision.datasets.CIFAR10(root = './data', train = True,
 download = True, transform = transform)
 
-test = torchvision.datasets.CIFAR10(root = '.', train = False,
+test = torchvision.datasets.CIFAR10(root = './data', train = False,
 download = True, transform = transform)
 
-train_loader = torch.utils.data.DataLoader(train, batch_size = num_batches,
+train_loader = torch.utils.data.DataLoader(train, batch_size = batch_size,
 shuffle = True)
 
-test_loader = torch.utils.data.DataLoader(test, batch_size = num_batches,
+test_loader = torch.utils.data.DataLoader(test, batch_size = batch_size,
 shuffle = False)
 
-# Manually cache classes
+# Hard code classes
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
 'ship', 'truck')
 
 # %%
 # Model Design
+
+'''
+LAYER GUIDE:
+- Convolution/ReLU
+- Convolution/ReLU
+- MaxPool
+- Convolution/ReLU
+- Convolution/ReLU
+- MaxPool
+- Fully Connected
+- Softmax **included in nn.CrossEntropyLoss()**
+'''
 class CNN(nn.Module):
 
     def __init__(self):
+
+        # Always need class inheritence
         super(CNN, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 6,
-        kernel_size = 5)
+        # Layers
 
+        # 3 color channels, map to 6 channels, 5x5 kernel
+        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 6, kernel_size = 5)
+
+        # 6 channels from first layer, map to 16 channels, 5x5 kernel
+        self.conv2 = nn.Conv2d(in_channels = 6, out_channels = 16, kernel_size = 5)
+
+        # 2x2 pooling kernel, stride of 2
         self.pool1 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
-        # need in channels from first conv layer
-        self.conv2 = nn.Conv2d(in_channels = 6, out_channels = 16, 
-        kernel_size = 5)
+        # 16 channels from second layer, map to 64 channels, 5x5 kernel
+        self.conv3 = nn.conv2d(in_channels = 16, out_channels = 64, kernel_size = 5)
 
-        self.fc1 = nn.Linear(in_features= 16*10*10, out_features = 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        # 64 channels from third layer, map to 128 channels, 5x5 kernel
+        self.conv4 = nn.conv2d(in_channels = 64, out_channels = 128, kernel_size = 5)
 
+        # 2x2 pooling kernel, stride of 2
+        self.pool2 = nn.MaxPool2d(kernel_size = 2, stride = 2)
+
+        # Fully connected layer
+        self.fc1 = nn.Linear(in_features = 128*32*32, out_features = 10)
     def forward(self, x):
-        out = F.relu(self.conv1(x))
-        out = self.pool1(out)
-        out = F.relu(self.conv2(out))
-        out = out.view(-1, 16*10*10) # flatten before linear
-        out = F.relu(self.fc1(out))
-        out = F.relu(self.fc2(out))
-        out = self.fc3(out)
-        # no softmax, we are using CrossEntropyLoss()
-
-        return out
+        pass
 
 # %%
 # Model Initialization
 model = CNN()
 
 # Loss and Optimizer
-loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr = eta)
+loss_fn = nn.CrossEntropyLoss() # Use Cross Entropy Loss; applies softmax
+optimizer = torch.optim.Adam(model.parameters(), lr = eta) # Adam Optimizer
 
 # %%
 # Training loop
 steps_per_epoch = len(train_loader)
 
-# loss follower
+# Loss Cache for plotting
 loss_by_epoch = []
 
+# Epoch iteration
 for epoch in range(num_epochs):
+    
+    # refresh epoch loss at each epoch
     epoch_loss = 0
+
+    # Batch Iteration
     for i, (x,y) in enumerate(train_loader):
 
         # refresh gradient
@@ -121,6 +139,8 @@ for epoch in range(num_epochs):
         if (i+1)%1000 == 0:
             print(f'batch {i+1} in epoch {epoch + 1} complete')
     print(f'EPOCH {epoch + 1} TOTAL LOSS: {epoch_loss}')
+
+    # Cache loss by epoch
     loss_by_epoch.append(epoch_loss)
 # %%
 # Test Performance
