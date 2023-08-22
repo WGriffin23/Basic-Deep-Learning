@@ -5,7 +5,6 @@ Remarks:
 - Data are 32x32 color images 
 - There are 6000 images per class, for a total of 60,000 images
 - Training and Testing datasets are pre-curated at a 5:1 ratio
-- TEST COMMENT
 '''
 
 #%%
