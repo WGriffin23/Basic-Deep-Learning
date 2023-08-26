@@ -213,8 +213,20 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 # %%
 # CALL FROM LINE
 if __name__ == '__main__':
-    trainer = Trainer(max_epochs = num_epochs, fast_dev_run = True, 
+    trial_flag = input("Trial Mode? [y/n]:")
+
+    # Input Parsing
+    if trial_flag == 'y':
+        trial_flag = True
+    elif trial_flag == 'n':
+        trial_flag = False
+    else:
+        raise ValueError("Answer needs to be 'y' or 'n' ")
+    
+    # Trainer configuration. We are using CPU training because my hardware is bad.
+    trainer = Trainer(max_epochs = num_epochs, fast_dev_run = trial_flag, 
                     accelerator = 'cpu')
     model = CNN()
     trainer.fit(model)
+    trainer.validate(model, dataloaders = model.val_dataloader())
     trainer.test(model, dataloaders = model.test_dataloader())
