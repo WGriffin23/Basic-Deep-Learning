@@ -12,6 +12,7 @@
 
 import torch
 import torch.nn as nn
+from torch.utils.data.dataset import random_split
 import matplotlib.pyplot as plt 
 import torchvision 
 import torchvision.transforms as transforms
@@ -21,15 +22,33 @@ from lightning.pytorch import Trainer
 
 # %%
 # HYPERPARAMETERS
-
 num_epochs = 4
 batch_size = 100
 eta = .001 # learning rate
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
 'ship', 'truck')
 
+# Normalizes data and casts it as a tensor.
 transform = transforms.Compose([transforms.ToTensor(), 
 transforms.Normalize(mean = (0.5,0.5,0.5), std = (0.5,0.5,0.5))])
+
+#%%
+# DATASET IMPORTS
+
+# Downlaod to data file, training dataset, cast to tensor and normalize
+train = torchvision.datasets.CIFAR10(root = './data',
+                                    train = True,
+                                    download = True,
+                                    transform = transform)
+
+# Split off a validation dataset from the 50k training images
+train, val = random_split(train, lengths = [40000, 10000])
+
+# Download testing dataset to data directory, applying the same transform
+test = torchvision.datasets.CIFAR10(root = './data',
+                                    train = False,
+                                    download = True,
+                                    transform = transform)
 
 # %%
 # CLASS DESIGN
@@ -53,6 +72,9 @@ Remarks:
     len(x) = (height*width-kernel_size)/(stride) + 1
 - With multiple channels, the flattening becomes:
     len(x) = [(height*width-kernel_size)/(stride) + 1]*channel_count
+- Even single datapoints have a "batch dimension" that needs to be preserved
+when processing, so DO NOT USE torch.flatten(), because it will eat the batch
+dimension and break things.
 '''
 
 class CNN(pl.LightningModule): # inherit from LightningModule
@@ -85,7 +107,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         # max pool, use a 2x2 kernel and stride of 1
         self.pool2 = nn.MaxPool2d(kernel_size = 2, stride = 1)
 
-        # Fully connected layer; in_features was hardcoded in by reading error outputs
+        # Fully connected layer; in_features has to be hardcoded in
         self.fc1 = nn.Linear(in_features = 12544, out_features = 10)
     
     # Forward Pass
@@ -99,7 +121,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         out = F.relu(self.conv4(out))
         out = self.pool2(out)
 
-        # Flattening and Linear Layers.
+        # Flattening and Linear Layers. Notice we preserve the batch dimension.
         out = out.reshape(-1, 12544)
         out = self.fc1(out)
 
@@ -109,6 +131,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
     def configure_optimizers(self):
         return torch.optim.SGD(self.parameters(), lr = eta)
     
+    # Training loop configuration
     def training_step(self, batch, batch_idx):
 
         # Unpacking
@@ -117,19 +140,14 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         # Forward pass
         y_hat = self.forward(x)
 
-        # Loss Computation
-        loss = F.cross_entropy(y_hat, y)
+        # Loss Computation. nn.CrossEntropyLoss() doesn't work here, not sure why.
+        L = F.cross_entropy(y_hat, y)
 
         # Dictionary formatting
-        return loss
+        return {'loss': L}
     
+    # Training loader configuration
     def train_dataloader(self):
-        
-        # downlaod to data file, training dataset, cast to tensor and normalize
-        train = torchvision.datasets.CIFAR10(root = './data',
-                                            train = True,
-                                            download = True,
-                                            transform = transform)
         
         # declare batch size, give 4 worker threads to load, and shuffle
         train_loader = torch.utils.data.DataLoader(dataset = train,
@@ -139,11 +157,34 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         
         return train_loader
     
+    # Validation Loop configuration; Lightning handles no_grad stuff
+    def validation_step(self, batch, batch_idx):
 
+        # Unpacking
+        x, y = batch
+
+        # Forward Pass
+        y_hat = self.forward(x)
+
+        # Loss Computation
+        L = F.cross_entropy(y_hat, y)
+
+        # Dictionary formatting
+        return {'val_loss': L}
+    
+    def val_dataloader(self):
+
+        # Declare a validation loader, give 4 worker threads, and allow shuffling
+        val_loader = torch.utils.data.DataLoader(dataset = val,
+                                                batch_size = batch_size,
+                                                num_workers = 4,
+                                                shuffle = False)
+        
+        return val_loader
 # %%
 # CALL FROM LINE
 if __name__ == '__main__':
-    trainer = Trainer(max_epochs = num_epochs, fast_dev_run = False, 
+    trainer = Trainer(max_epochs = num_epochs, fast_dev_run = True, 
                     accelerator = 'cpu')
     model = CNN()
     trainer.fit(model)
