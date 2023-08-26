@@ -160,7 +160,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
     # Validation Loop configuration; Lightning handles no_grad stuff
     def validation_step(self, batch, batch_idx):
 
-        # Unpacking
+        # Unpacking; remember these tensors have a batch dimension
         x, y = batch
 
         # Forward Pass
@@ -174,13 +174,42 @@ class CNN(pl.LightningModule): # inherit from LightningModule
     
     def val_dataloader(self):
 
-        # Declare a validation loader, give 4 worker threads, and allow shuffling
+        # Declare a validation loader, give 4 worker threads, don't allow shuffling
         val_loader = torch.utils.data.DataLoader(dataset = val,
                                                 batch_size = batch_size,
                                                 num_workers = 4,
                                                 shuffle = False)
         
         return val_loader
+    
+    # Testing Loop configuration; Lightning handles no_grad stuff
+    def test_step(self, batch, batch_idx):
+
+        # Unpacking; remember these tensors have a batch dimension
+        x, y = batch
+
+        # Forward Pass
+        y_hat = self.forward(x)
+
+        # Loss Computation
+        L = F.cross_entropy(y_hat, y)
+
+        # Dictionary formatting
+        return {'test_loss': L}
+    
+    # Testing Loader configuration
+    def test_dataloader(self):
+
+        # Declare a test loader, give 4 worker threads
+        val_loader = torch.utils.data.DataLoader(dataset = val, 
+                                                batch_size = batch_size,
+                                                num_workers = 4,
+                                                shuffle = False)
+        
+        return val_loader
+
+    
+
 # %%
 # CALL FROM LINE
 if __name__ == '__main__':
@@ -188,3 +217,4 @@ if __name__ == '__main__':
                     accelerator = 'cpu')
     model = CNN()
     trainer.fit(model)
+    trainer.test(model, dataloaders = model.test_dataloader())
