@@ -22,9 +22,9 @@ from lightning.pytorch import Trainer
 
 # %%
 # HYPERPARAMETERS
-num_epochs = 4
+num_epochs = 10
 batch_size = 100
-eta = .001 # learning rate
+eta = .005 # learning rate
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
 'ship', 'truck')
 
@@ -143,6 +143,13 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         # Loss Computation. nn.CrossEntropyLoss() doesn't work here, not sure why.
         L = F.cross_entropy(y_hat, y)
 
+        # Compute accuracy. Notice logits are on axis 1, axis 0 is the batch axis.  
+        acc = y_hat.argmax(dim = 1).eq(y).sum().item() / len(y)
+
+        # Performance Logging
+        metrics = {"train_loss": L, "train_acc": acc}
+        self.log_dict(metrics)
+
         # Dictionary formatting
         return {'loss': L}
     
@@ -169,6 +176,13 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         # Loss Computation
         L = F.cross_entropy(y_hat, y)
 
+        # Compute accuracy. Notice logits are on axis 1, axis 0 is the batch axis.  
+        acc = y_hat.argmax(dim = 1).eq(y).sum().item() / len(y)
+        
+        # Performance Logging
+        metrics = {"val_loss": L, "val_acc": acc}
+        self.log_dict(metrics)
+
         # Dictionary formatting
         return {'val_loss': L}
     
@@ -193,6 +207,13 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 
         # Loss Computation
         L = F.cross_entropy(y_hat, y)
+
+        # Compute accuracy. Notice logits are on axis 1, axis 0 is the batch axis.  
+        acc = y_hat.argmax(dim = 1).eq(y).sum().item() / len(y)
+
+        # Performance Logging
+        metrics = {"test_loss": L, "test_acc": acc}
+        self.log_dict(metrics)
 
         # Dictionary formatting
         return {'test_loss': L}
