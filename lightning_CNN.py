@@ -22,7 +22,7 @@ from lightning.pytorch import Trainer
 
 # %%
 # HYPERPARAMETERS
-num_epochs = 10
+num_epochs = 50
 batch_size = 100
 eta = .005 # learning rate
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
@@ -61,6 +61,9 @@ Layer Guide:
 - Convolution/ReLU
 - Max Pool
 - Fully Connected
+- Convolution/ReLU
+- Convolution/ReLU
+- Max Pool
 - SoftMax **included in nn.CrossEntropyLoss()
 
 Remarks:
@@ -75,6 +78,12 @@ Remarks:
 - Even single datapoints have a "batch dimension" that needs to be preserved
 when processing, so DO NOT USE torch.flatten(), because it will eat the batch
 dimension and break things.
+
+Some experimental results:
+- Downsizing the kernel to 3x3 from 5x5 significantly improved performance
+- Additional hidden layers in the linear phase were expensive and not terribly
+helpful; deepening the convolution seemed to work better
+- 
 '''
 
 class CNN(pl.LightningModule): # inherit from LightningModule
@@ -86,29 +95,29 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 
         # LAYERS
 
-        # 3 color channels, map to 6, use a 5x5 kernel
+        # 3 color channels, map to 6, use a 3x3 kernel
         self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 6, 
-                                kernel_size = 5)
+                                kernel_size = 3)
 
-        # map 6 channels to 16 channels, use a 5x5 kernel
+        # map 6 channels to 16 channels, use a 3x3 kernel
         self.conv2 = nn.Conv2d(in_channels = 6, out_channels = 16,
-                                kernel_size = 5)
+                                kernel_size = 3)
 
         # max pool, use a 2x2 kernel and stride of 1
         self.pool1 = nn.MaxPool2d(kernel_size = 2, stride = 1)
 
-        # map 16 channels to 32 channels, use a 5x5 kernel
+        # map 16 channels to 32 channels, use a 3x3 kernel
         self.conv3 = nn.Conv2d(in_channels = 16, out_channels = 32, 
-                                kernel_size = 5)
+                                kernel_size = 3)
         
-        # map 32 channels to 64 channels, use a 5x5 kernel
-        self.conv4 = nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 5)
+        # map 32 channels to 64 channels, use a 3x3 kernel
+        self.conv4 = nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 3)
 
         # max pool, use a 2x2 kernel and stride of 1
         self.pool2 = nn.MaxPool2d(kernel_size = 2, stride = 1)
 
-        # Fully connected layer; in_features has to be hardcoded in
-        self.fc1 = nn.Linear(in_features = 12544, out_features = 10)
+        # Fully connected layer; in_features has to be hardcoded in. Map to scores
+        self.fc1 = nn.Linear(in_features = 30976, out_features = 10)
     
     # Forward Pass
     def forward(self, x):
@@ -122,7 +131,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         out = self.pool2(out)
 
         # Flattening and Linear Layers. Notice we preserve the batch dimension.
-        out = out.reshape(-1, 12544)
+        out = out.reshape(-1, 30976)
         out = self.fc1(out)
 
         return out
@@ -222,19 +231,19 @@ class CNN(pl.LightningModule): # inherit from LightningModule
     def test_dataloader(self):
 
         # Declare a test loader, give 4 worker threads
-        val_loader = torch.utils.data.DataLoader(dataset = val, 
+        test_loader = torch.utils.data.DataLoader(dataset = test, 
                                                 batch_size = batch_size,
                                                 num_workers = 4,
                                                 shuffle = False)
         
-        return val_loader
+        return test_loader
 
     
 
 # %%
 # CALL FROM LINE
 if __name__ == '__main__':
-    trial_flag = input("Trial Mode? [y/n]:")
+    trial_flag = input("Debug Mode? [y/n]:")
 
     # Input Parsing
     if trial_flag == 'y':
