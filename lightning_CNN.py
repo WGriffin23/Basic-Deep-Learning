@@ -22,9 +22,9 @@ from lightning.pytorch import Trainer
 
 # %%
 # HYPERPARAMETERS
-num_epochs = 50
+num_epochs = 15
 batch_size = 100
-eta = .005 # learning rate
+eta = .0004 # learning rate
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
 'ship', 'truck')
 
@@ -64,7 +64,7 @@ Layer Guide:
 - Convolution/ReLU
 - Convolution/ReLU
 - Max Pool
-- SoftMax **included in nn.CrossEntropyLoss()
+- SoftMax **included in F.cross_entropy()
 
 Remarks:
 - Image batches have shape [batch_size, channel_count, height, width]
@@ -83,7 +83,7 @@ Some experimental results:
 - Downsizing the kernel to 3x3 from 5x5 significantly improved performance
 - Additional hidden layers in the linear phase were expensive and not terribly
 helpful; deepening the convolution seemed to work better
-- 
+- Watch 1,3,7,9
 '''
 
 class CNN(pl.LightningModule): # inherit from LightningModule
@@ -95,50 +95,74 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 
         # LAYERS
 
-        # 3 color channels, map to 6, use a 3x3 kernel
-        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 6, 
-                                kernel_size = 3)
-
-        # map 6 channels to 16 channels, use a 3x3 kernel
-        self.conv2 = nn.Conv2d(in_channels = 6, out_channels = 16,
+        # 3 color channels, map to 16, use a 3x3 kernel
+        self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 32, 
                                 kernel_size = 3)
 
         # max pool, use a 2x2 kernel and stride of 1
-        self.pool1 = nn.MaxPool2d(kernel_size = 2, stride = 1)
+        self.pool1 = nn.MaxPool2d(kernel_size = 3, stride = 1)
 
-        # map 16 channels to 32 channels, use a 3x3 kernel
-        self.conv3 = nn.Conv2d(in_channels = 16, out_channels = 32, 
+        # Further feature extraction at 16 channels
+        self.conv2 = nn.Conv2d(in_channels = 32, out_channels = 64,
                                 kernel_size = 3)
         
-        # map 32 channels to 64 channels, use a 3x3 kernel
-        self.conv4 = nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 3)
-
+        self.conv3 = nn.Conv2d(in_channels = 64, out_channels = 64,
+                                kernel_size = 3)
+        
         # max pool, use a 2x2 kernel and stride of 1
         self.pool2 = nn.MaxPool2d(kernel_size = 2, stride = 1)
 
-        # Fully connected layer; in_features has to be hardcoded in. Map to scores
-        self.fc1 = nn.Linear(in_features = 30976, out_features = 10)
+        # Boost channels to 32, maintain 3x3 kernel
+        self.conv4 = nn.Conv2d(in_channels = 64, out_channels = 128, 
+                                kernel_size = 3)
+        
+        self.conv5 = nn.Conv2d(in_channels = 128, out_channels = 128,
+                                kernel_size = 3)
+        
+        # Max pool, use a 2x2 kernel and stride of 1
+        self.pool3 = nn.MaxPool2d(kernel_size = 2, stride = 1)
+
+        # Fully connected layer; in_features has to be hardcoded in.
+        self.fc1 = nn.Linear(in_features = 41472, out_features = 250)
+
+        # Additional Fully connected layers to introduce nonlinearity
+        self.fc2 = nn.Linear(in_features = 250, out_features = 250)
+
+        self.fc3 = nn.Linear(in_features = 250, out_features = 250)
+
+        self.fc4 = nn.Linear(in_features = 250, out_features = 250)
+
+        # Score assignment
+        self.fc5 = nn.Linear(in_features = 250, out_features = 10)
+
+
     
     # Forward Pass
     def forward(self, x):
 
         # Convolutional Layers
         out = F.relu(self.conv1(x))
-        out = F.relu(self.conv2(out))
         out = self.pool1(out)
+        out = F.relu(self.conv2(out))
         out = F.relu(self.conv3(out))
-        out = F.relu(self.conv4(out))
         out = self.pool2(out)
+        out = F.relu(self.conv4(out))
+        out = F.relu(self.conv5(out))
+        out = self.pool3(out)
 
         # Flattening and Linear Layers. Notice we preserve the batch dimension.
-        out = out.reshape(-1, 30976)
-        out = self.fc1(out)
+        out = out.reshape(-1, 41472)
+        out = F.relu(self.fc1(out))
+        out = F.relu(self.fc2(out))
+        out = F.relu(self.fc3(out))
+        out = F.relu(self.fc4(out))
+        out = self.fc5(out)
 
         return out
     
     # Optimizer configuration; SGD is currently considered best practice for CNN
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr = eta)
+        return torch.optim.Adam(self.parameters(), lr = eta)
     
     # Training loop configuration
     def training_step(self, batch, batch_idx):
