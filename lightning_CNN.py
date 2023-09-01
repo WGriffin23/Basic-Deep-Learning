@@ -22,7 +22,7 @@ from lightning.pytorch import Trainer
 
 # %%
 # HYPERPARAMETERS
-num_epochs = 15
+num_epochs = 13
 batch_size = 100
 eta = .0004 # learning rate
 classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse',
@@ -104,23 +104,23 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 
         # Further feature extraction at 16 channels
         self.conv2 = nn.Conv2d(in_channels = 32, out_channels = 64,
-                                kernel_size = 3)
+                                kernel_size = 3, padding = 2)
         
         self.conv3 = nn.Conv2d(in_channels = 64, out_channels = 64,
-                                kernel_size = 3)
+                                kernel_size = 3, padding = 2)
         
         # max pool, use a 2x2 kernel and stride of 1
-        self.pool2 = nn.MaxPool2d(kernel_size = 2, stride = 1)
+        self.pool2 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
         # Boost channels to 32, maintain 3x3 kernel
         self.conv4 = nn.Conv2d(in_channels = 64, out_channels = 128, 
-                                kernel_size = 3)
+                                kernel_size = 3, padding = 2)
         
         self.conv5 = nn.Conv2d(in_channels = 128, out_channels = 128,
-                                kernel_size = 3)
+                                kernel_size = 3, padding = 2)
         
         # Max pool, use a 2x2 kernel and stride of 1
-        self.pool3 = nn.MaxPool2d(kernel_size = 2, stride = 1)
+        self.pool3 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
         # Fully connected layer; in_features has to be hardcoded in.
         self.fc1 = nn.Linear(in_features = 6272, out_features = 250)
@@ -132,8 +132,10 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 
         self.fc4 = nn.Linear(in_features = 250, out_features = 250)
 
+        self.fc5 = nn.Linear(in_features = 250, out_features = 250)
+
         # Score assignment
-        self.fc5 = nn.Linear(in_features = 250, out_features = 10)
+        self.fc6 = nn.Linear(in_features = 250, out_features = 10)
 
 
     
@@ -156,7 +158,8 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         out = F.relu(self.fc2(out))
         out = F.relu(self.fc3(out))
         out = F.relu(self.fc4(out))
-        out = self.fc5(out)
+        out = F.relu(self.fc5(out))
+        out = self.fc6(out)
 
         return out
     
@@ -284,3 +287,6 @@ if __name__ == '__main__':
     trainer.fit(model)
     trainer.validate(model, dataloaders = model.val_dataloader())
     trainer.test(model, dataloaders = model.test_dataloader())
+    
+    # Save Weights
+    torch.save(model.state_dict(), 'lightning_CNN.pth')
