@@ -97,10 +97,10 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 
         # 3 color channels, map to 16, use a 3x3 kernel
         self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 32, 
-                                kernel_size = 3)
+                                kernel_size = 3, padding = 2)
 
         # max pool, use a 2x2 kernel and stride of 1
-        self.pool1 = nn.MaxPool2d(kernel_size = 3, stride = 1)
+        self.pool1 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
         # Further feature extraction at 16 channels
         self.conv2 = nn.Conv2d(in_channels = 32, out_channels = 64,
@@ -123,7 +123,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         self.pool3 = nn.MaxPool2d(kernel_size = 2, stride = 1)
 
         # Fully connected layer; in_features has to be hardcoded in.
-        self.fc1 = nn.Linear(in_features = 41472, out_features = 250)
+        self.fc1 = nn.Linear(in_features = 6272, out_features = 250)
 
         # Additional Fully connected layers to introduce nonlinearity
         self.fc2 = nn.Linear(in_features = 250, out_features = 250)
@@ -151,7 +151,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         out = self.pool3(out)
 
         # Flattening and Linear Layers. Notice we preserve the batch dimension.
-        out = out.reshape(-1, 41472)
+        out = out.reshape(-1, 6272)
         out = F.relu(self.fc1(out))
         out = F.relu(self.fc2(out))
         out = F.relu(self.fc3(out))
