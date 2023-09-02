@@ -122,20 +122,18 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         # Max pool, use a 2x2 kernel and stride of 1
         self.pool3 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
+
         # Fully connected layer; in_features has to be hardcoded in.
-        self.fc1 = nn.Linear(in_features = 6272, out_features = 250)
+        self.fc1 = nn.Linear(in_features = 6272, out_features = 500)
 
         # Additional Fully connected layers to introduce nonlinearity
-        self.fc2 = nn.Linear(in_features = 250, out_features = 250)
+        self.fc2 = nn.Linear(in_features = 500, out_features = 500)
 
-        self.fc3 = nn.Linear(in_features = 250, out_features = 250)
-
-        self.fc4 = nn.Linear(in_features = 250, out_features = 250)
-
-        self.fc5 = nn.Linear(in_features = 250, out_features = 250)
-
+        self.fc3 = nn.Linear(in_features = 500, out_features = 500)
         # Score assignment
-        self.fc6 = nn.Linear(in_features = 250, out_features = 10)
+        self.fc4 = nn.Linear(in_features = 500, out_features = 10)
+
+
 
 
     
@@ -157,10 +155,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         out = F.relu(self.fc1(out))
         out = F.relu(self.fc2(out))
         out = F.relu(self.fc3(out))
-        out = F.relu(self.fc4(out))
-        out = F.relu(self.fc5(out))
-        out = self.fc6(out)
-
+        out = self.fc4(out)
         return out
     
     # Optimizer configuration; SGD is currently considered best practice for CNN
