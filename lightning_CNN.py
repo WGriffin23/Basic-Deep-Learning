@@ -54,23 +54,23 @@ test = torchvision.datasets.CIFAR10(root = './data',
 # CLASS DESIGN
 '''
 Layer Guide:
-- Convolution/ReLU
-- Convolution/ReLU
-- Max Pool
-- Convolution/ReLU
-- Convolution/ReLU
-- Max Pool
-- Fully Connected
-- Convolution/ReLU
-- Convolution/ReLU
-- Max Pool
-- SoftMax **included in F.cross_entropy()
+- Convolution/ReLU w/ 3x3 kernel. Boost to 32 channels
+- Max Pool w/ 2x2 kernel and stride 2.
+- Convolution/ReLU w/ 3x3 kernel. Boost to 64 channels.
+- Convolution/ReLU w/ 3x3 kernel. Maintain 64 channels.
+- Max Pool w/ 2x2 kernel and stride 2.
+- Convolution/ReLU w/ 3x3 kernel. Boost to 128 channels.
+- Convolution/ReLU w/ 3x3 kernel. Boost to 128 channels.
+- Max Pool w/ 2x2 kernel and stride 2.
+- FLATTEN
+- ReLU Linear layer mapping flattened input features to 500 outputs
+- ReLU Hidden layer mapping 500 inputs to 500 outputs
+- ReLU Hidden layer mapping 500 inputs to 500 outputs
+- Score assignment mapping 500 inputs to 10 scores
+- Softmax (included in CrossEntropy)
 
 Remarks:
 - Image batches have shape [batch_size, channel_count, height, width]
-- We don't use padding for this dataset
-- Because of the low pixel count, stride is going to be 1 for all conv layers
-- Because of the low pixel count, kernel size will stay 5x5 for all conv layers
 - A single channel image is flattened according to: 
     len(x) = (height*width-kernel_size)/(stride) + 1
 - With multiple channels, the flattening becomes:
@@ -78,12 +78,13 @@ Remarks:
 - Even single datapoints have a "batch dimension" that needs to be preserved
 when processing, so DO NOT USE torch.flatten(), because it will eat the batch
 dimension and break things.
+- Dimensionality reduction only occurs in pooling, padding is used in conv.
+layers to induce no dimensionality loss during convolution
 
 Some experimental results:
 - Downsizing the kernel to 3x3 from 5x5 significantly improved performance
 - Additional hidden layers in the linear phase were expensive and not terribly
 helpful; deepening the convolution seemed to work better
-- Watch 1,3,7,9
 '''
 
 class CNN(pl.LightningModule): # inherit from LightningModule
@@ -95,31 +96,31 @@ class CNN(pl.LightningModule): # inherit from LightningModule
 
         # LAYERS
 
-        # 3 color channels, map to 16, use a 3x3 kernel
+        # 3 color channels, map to 32, use a 3x3 kernel
         self.conv1 = nn.Conv2d(in_channels = 3, out_channels = 32, 
                                 kernel_size = 3, padding = 2)
 
-        # max pool, use a 2x2 kernel and stride of 1
+        # Dimension reduction w/ 2x2 max pool at stride 2
         self.pool1 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
-        # Further feature extraction at 16 channels
+        # Further feature extraction at 64 channels
         self.conv2 = nn.Conv2d(in_channels = 32, out_channels = 64,
                                 kernel_size = 3, padding = 2)
         
         self.conv3 = nn.Conv2d(in_channels = 64, out_channels = 64,
                                 kernel_size = 3, padding = 2)
         
-        # max pool, use a 2x2 kernel and stride of 1
+        # Dimension reduction w/ 2x2 max pool at stride 2
         self.pool2 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
-        # Boost channels to 32, maintain 3x3 kernel
+        # Boost channels to 128, maintain 3x3 kernel
         self.conv4 = nn.Conv2d(in_channels = 64, out_channels = 128, 
                                 kernel_size = 3, padding = 2)
         
         self.conv5 = nn.Conv2d(in_channels = 128, out_channels = 128,
                                 kernel_size = 3, padding = 2)
         
-        # Max pool, use a 2x2 kernel and stride of 1
+        # Dimension reduction w/ 2x2 max pool at stride 2
         self.pool3 = nn.MaxPool2d(kernel_size = 2, stride = 2)
 
 
@@ -130,6 +131,7 @@ class CNN(pl.LightningModule): # inherit from LightningModule
         self.fc2 = nn.Linear(in_features = 500, out_features = 500)
 
         self.fc3 = nn.Linear(in_features = 500, out_features = 500)
+
         # Score assignment
         self.fc4 = nn.Linear(in_features = 500, out_features = 10)
 
